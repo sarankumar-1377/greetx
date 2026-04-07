@@ -22,9 +22,9 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
 
-  // 🔒 COLLEGE EMAIL CHECK
+  // ✅ STRICT COLLEGE CHECK
   const isCollegeEmail = (mail) => {
-    return mail.endsWith("@psnacet.edu.in");
+    return mail.trim().toLowerCase().endsWith("@psnacet.edu.in");
   };
 
   // 🔐 SIGNUP
@@ -113,8 +113,16 @@ export default function App() {
       <div style={styles.center}>
         <h2>🔥 GreetX</h2>
 
-        <input placeholder="College Email" onChange={(e) => setEmail(e.target.value)} />
-        <input placeholder="Password" type="password" onChange={(e) => setPassword(e.target.value)} />
+        <input
+          placeholder="College Email"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          placeholder="Password"
+          type="password"
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
         <button onClick={login}>Login</button>
         <button onClick={signup}>Signup</button>
