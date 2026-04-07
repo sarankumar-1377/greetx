@@ -7,61 +7,82 @@ import {
   signOut,
 } from "firebase/auth";
 
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  setDoc,
+  doc,
+  getDoc,
+  deleteDoc,
+  updateDoc,
+  onSnapshot,
+} from "firebase/firestore";
 
 export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [regNo, setRegNo] = useState("");
+
   const [user, setUser] = useState(null);
+  const [userReg, setUserReg] = useState("");
+
+  const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   const [productName, setProductName] = useState("");
   const [price, setPrice] = useState("");
   const [desc, setDesc] = useState("");
   const [image, setImage] = useState("");
 
-  const [products, setProducts] = useState([]);
-  const [search, setSearch] = useState("");
+  const [commentText, setCommentText] = useState("");
 
-  // ✅ STRICT COLLEGE CHECK
-  const isCollegeEmail = (mail) => {
-    return mail.trim().toLowerCase().endsWith("@psnacet.edu.in");
-  };
+  // 💬 CHAT
+  const [chatOpen, setChatOpen] = useState(false);
+  const [currentChat, setCurrentChat] = useState(null);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+
+  // ✅ COLLEGE EMAIL CHECK
+  const isCollegeEmail = (mail) =>
+    mail.trim().toLowerCase().endsWith("@psnacet.edu.in");
 
   // 🔐 SIGNUP
   const signup = async () => {
-    try {
-      if (!isCollegeEmail(email)) {
-        alert("❌ Only PSNACET college mail allowed");
-        return;
-      }
-
-      const res = await createUserWithEmailAndPassword(auth, email, password);
-      setUser(res.user);
-      alert("Signup success ✅");
-
-    } catch (err) {
-      alert(err.message);
+    if (!isCollegeEmail(email)) {
+      alert("Only college mail allowed");
+      return;
     }
+
+    const res = await createUserWithEmailAndPassword(auth, email, password);
+    setUser(res.user);
+
+    await setDoc(doc(db, "users", res.user.uid), {
+      regNo,
+    });
+
+    setUserReg(regNo);
   };
 
   // 🔐 LOGIN
   const login = async () => {
-    try {
-      if (!isCollegeEmail(email)) {
-        alert("❌ Use college mail only");
-        return;
-      }
-
-      const res = await signInWithEmailAndPassword(auth, email, password);
-      setUser(res.user);
-      loadProducts();
-
-    } catch (err) {
-      alert(err.message);
+    if (!isCollegeEmail(email)) {
+      alert("Use college mail only");
+      return;
     }
+
+    const res = await signInWithEmailAndPassword(auth, email, password);
+    setUser(res.user);
+
+    const docRef = await getDoc(doc(db, "users", res.user.uid));
+    if (docRef.exists()) {
+      setUserReg(docRef.data().regNo);
+    }
+
+    loadProducts();
   };
 
-  // 🚪 LOGOUT
   const logout = async () => {
     await signOut(auth);
     setUser(null);
@@ -69,33 +90,75 @@ export default function App() {
 
   // ➕ ADD PRODUCT
   const addProduct = async () => {
-    if (!productName || !price) {
-      alert("Fill all fields");
-      return;
-    }
-
     await addDoc(collection(db, "products"), {
       name: productName,
       price,
       desc,
       image,
-      user: user.email,
-      created: Date.now(),
+      regNo: userReg,
+      comments: [],
     });
 
-    setProductName("");
-    setPrice("");
-    setDesc("");
-    setImage("");
-
+    setShowForm(false);
     loadProducts();
   };
+
+  // 🗑 DELETE
+  const deleteProduct = async (id, owner) => {
+    if (owner !== userReg) return alert("Not allowed");
+    await deleteDoc(doc(db, "products", id));
+    loadProducts();
+  };
+
+  // 💬 COMMENT
+  const addComment = async (id, old) => {
+    if (!commentText) return;
+
+    await updateDoc(doc(db, "products", id), {
+      comments: [...(old || []), `${userReg}: ${commentText}`],
+    });
+
+    setCommentText("");
+    loadProducts();
+  };
+
+  // 💬 CHAT SEND
+  const sendMessage = async () => {
+    if (!message) return;
+
+    await addDoc(collection(db, "chats"), {
+      chatId: currentChat.id,
+      sender: userReg,
+      text: message,
+      time: Date.now(),
+    });
+
+    setMessage("");
+  };
+
+  // 💬 CHAT LISTENER
+  useEffect(() => {
+    if (!currentChat) return;
+
+    const unsub = onSnapshot(collection(db, "chats"), (snap) => {
+      let list = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.chatId === currentChat.id) {
+          list.push(data);
+        }
+      });
+      setMessages(list);
+    });
+
+    return () => unsub();
+  }, [currentChat]);
 
   // 📦 LOAD PRODUCTS
   const loadProducts = async () => {
     const snap = await getDocs(collection(db, "products"));
     let list = [];
-    snap.forEach((doc) => list.push(doc.data()));
+    snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
     setProducts(list.reverse());
   };
 
@@ -110,19 +173,12 @@ export default function App() {
   // 🔐 LOGIN UI
   if (!user) {
     return (
-      <div style={styles.center}>
-        <h2>🔥 GreetX</h2>
+      <div style={{ textAlign: "center", marginTop: "100px" }}>
+        <h2>🔥 Greetax</h2>
 
-        <input
-          placeholder="College Email"
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          placeholder="Password"
-          type="password"
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <input placeholder="College Email" onChange={(e) => setEmail(e.target.value)} /><br /><br />
+        <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} /><br /><br />
+        <input placeholder="Register No (25EE073)" onChange={(e) => setRegNo(e.target.value)} /><br /><br />
 
         <button onClick={login}>Login</button>
         <button onClick={signup}>Signup</button>
@@ -130,85 +186,97 @@ export default function App() {
     );
   }
 
-  // 🏠 HOME UI
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h3>🔥 GreetX</h3>
+    <div style={{ padding: "10px" }}>
 
-        <input
-          placeholder="Search..."
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* HEADER */}
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap" }}>
+        <h2>🔥 Greetax</h2>
 
-        <button onClick={logout}>Logout</button>
+        <input placeholder="Search..." onChange={(e) => setSearch(e.target.value)} />
+
+        <div>
+          <button onClick={() => setShowForm(true)}>+ Sell</button>
+          <button onClick={logout}>Logout</button>
+        </div>
       </div>
 
-      <div style={styles.form}>
-        <input placeholder="Product Name" onChange={(e) => setProductName(e.target.value)} />
-        <input placeholder="Price" onChange={(e) => setPrice(e.target.value)} />
-        <textarea placeholder="Description" onChange={(e) => setDesc(e.target.value)} />
-        <input placeholder="Image URL" onChange={(e) => setImage(e.target.value)} />
+      {/* ADD PRODUCT */}
+      {showForm && (
+        <div style={{ background: "#eee", padding: "10px", margin: "20px" }}>
+          <input placeholder="Name" onChange={(e) => setProductName(e.target.value)} /><br />
+          <input placeholder="Price" onChange={(e) => setPrice(e.target.value)} /><br />
+          <textarea placeholder="Description" onChange={(e) => setDesc(e.target.value)} /><br />
+          <input placeholder="Image URL" onChange={(e) => setImage(e.target.value)} /><br />
 
-        <button onClick={addProduct}>Post</button>
-      </div>
+          <button onClick={addProduct}>Post</button>
+        </div>
+      )}
 
-      <div style={styles.feed}>
-        {filtered.length === 0 && <h3>No items 😢</h3>}
+      {/* FEED */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
+        gap: "10px"
+      }}>
+        {filtered.map((p) => (
+          <div key={p.id} style={{ border: "1px solid #ccc", padding: "10px" }}>
+            {p.image && <img src={p.image} style={{ width: "100%" }} />}
 
-        {filtered.map((p, i) => (
-          <div key={i} style={styles.card}>
-            {p.image && <img src={p.image} style={styles.img} />}
             <h3>{p.name}</h3>
             <p>₹ {p.price}</p>
             <p>{p.desc}</p>
-            <small>👤 {p.user}</small>
+            <small>👤 {p.regNo}</small>
+
+            <button onClick={() => {
+              setChatOpen(true);
+              setCurrentChat(p);
+            }}>
+              💬 Chat
+            </button>
+
+            {p.regNo === userReg && (
+              <button onClick={() => deleteProduct(p.id, p.regNo)}>
+                🗑 Delete
+              </button>
+            )}
+
+            {/* COMMENTS */}
+            <div>
+              <input placeholder="Comment..." onChange={(e) => setCommentText(e.target.value)} />
+              <button onClick={() => addComment(p.id, p.comments)}>Send</button>
+
+              {p.comments?.map((c, i) => (
+                <p key={i}>💬 {c}</p>
+              ))}
+            </div>
           </div>
         ))}
       </div>
+
+      {/* CHAT BOX */}
+      {chatOpen && (
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          right: 0,
+          width: "300px",
+          background: "white",
+          padding: "10px"
+        }}>
+          <h4>Chat</h4>
+
+          <div style={{ height: "200px", overflow: "auto" }}>
+            {messages.map((m, i) => (
+              <p key={i}><b>{m.sender}:</b> {m.text}</p>
+            ))}
+          </div>
+
+          <input value={message} onChange={(e) => setMessage(e.target.value)} />
+          <button onClick={sendMessage}>Send</button>
+          <button onClick={() => setChatOpen(false)}>Close</button>
+        </div>
+      )}
     </div>
   );
 }
-
-// 🎨 STYLES
-const styles = {
-  container: {
-    background: "#0f172a",
-    minHeight: "100vh",
-    color: "white",
-    padding: "10px",
-  },
-  center: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    marginTop: "100px",
-    gap: "10px",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "20px",
-    gap: "10px",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    marginBottom: "20px",
-  },
-  feed: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
-    gap: "15px",
-  },
-  card: {
-    background: "#1e293b",
-    padding: "10px",
-    borderRadius: "10px",
-  },
-  img: {
-    width: "100%",
-    borderRadius: "10px",
-  },
-};
