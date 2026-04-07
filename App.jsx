@@ -21,31 +21,59 @@ export default function App() {
 
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
-
   const [page, setPage] = useState("home");
 
-  // 🔐 Signup
+  // ✅ COLLEGE EMAIL CHECK
+  const isCollegeEmail = (mail) => {
+    return mail.endsWith("@psnacet.edu.in");
+  };
+
+  // 🔐 SIGNUP
   const signup = async () => {
-    const res = await createUserWithEmailAndPassword(auth, email, password);
-    setUser(res.user);
+    try {
+      if (!isCollegeEmail(email)) {
+        alert("❌ Only PSNACET college mail allowed");
+        return;
+      }
+
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+      setUser(res.user);
+      alert("Signup success ✅");
+
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  // 🔐 Login
+  // 🔐 LOGIN
   const login = async () => {
-    const res = await signInWithEmailAndPassword(auth, email, password);
-    setUser(res.user);
-    loadProducts();
+    try {
+      if (!isCollegeEmail(email)) {
+        alert("❌ Use college mail only");
+        return;
+      }
+
+      const res = await signInWithEmailAndPassword(auth, email, password);
+      setUser(res.user);
+      loadProducts();
+
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  // 🚪 Logout
+  // 🚪 LOGOUT
   const logout = async () => {
     await signOut(auth);
     setUser(null);
   };
 
-  // ➕ Add Product
+  // ➕ ADD PRODUCT
   const addProduct = async () => {
-    if (!productName || !price) return alert("Fill all fields");
+    if (!productName || !price) {
+      alert("Fill all fields");
+      return;
+    }
 
     await addDoc(collection(db, "products"), {
       name: productName,
@@ -64,7 +92,7 @@ export default function App() {
     loadProducts();
   };
 
-  // 📦 Load Products
+  // 📦 LOAD PRODUCTS
   const loadProducts = async () => {
     const snap = await getDocs(collection(db, "products"));
     let list = [];
@@ -86,7 +114,7 @@ export default function App() {
       <div style={styles.center}>
         <h2>🔥 GreetX</h2>
 
-        <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
+        <input placeholder="College Email" onChange={(e) => setEmail(e.target.value)} />
         <input placeholder="Password" type="password" onChange={(e) => setPassword(e.target.value)} />
 
         <button onClick={login}>Login</button>
@@ -131,9 +159,8 @@ export default function App() {
   // 🏠 HOME PAGE
   return (
     <div style={styles.container}>
-      {/* HEADER */}
       <div style={styles.header}>
-        <h3 onClick={() => setPage("home")}>🔥 GreetX</h3>
+        <h3>🔥 GreetX</h3>
 
         <input
           placeholder="Search..."
@@ -146,7 +173,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ADD PRODUCT */}
       <div style={styles.form}>
         <input placeholder="Product Name" onChange={(e) => setProductName(e.target.value)} />
         <input placeholder="Price" onChange={(e) => setPrice(e.target.value)} />
@@ -156,7 +182,6 @@ export default function App() {
         <button onClick={addProduct}>Post</button>
       </div>
 
-      {/* FEED */}
       <div style={styles.feed}>
         {filtered.length === 0 && <h3>No items 😢</h3>}
 
