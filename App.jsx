@@ -21,9 +21,8 @@ export default function App() {
 
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState("home");
 
-  // ✅ COLLEGE EMAIL CHECK
+  // 🔒 COLLEGE EMAIL CHECK
   const isCollegeEmail = (mail) => {
     return mail.endsWith("@psnacet.edu.in");
   };
@@ -108,7 +107,7 @@ export default function App() {
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // 🔐 LOGIN PAGE
+  // 🔐 LOGIN UI
   if (!user) {
     return (
       <div style={styles.center}>
@@ -123,40 +122,7 @@ export default function App() {
     );
   }
 
-  // 👤 PROFILE PAGE
-  if (page === "profile") {
-    const myProducts = products.filter((p) => p.user === user.email);
-
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button onClick={() => setPage("home")}>⬅ Back</button>
-          <h3>👤 Profile</h3>
-          <button onClick={logout}>Logout</button>
-        </div>
-
-        <div style={{ textAlign: "center", marginBottom: "20px" }}>
-          <h2>{user.email}</h2>
-          <p>My Products: {myProducts.length}</p>
-        </div>
-
-        <div style={styles.feed}>
-          {myProducts.length === 0 && <h3>No items 😢</h3>}
-
-          {myProducts.map((p, i) => (
-            <div key={i} style={styles.card}>
-              {p.image && <img src={p.image} style={styles.img} />}
-              <h3>{p.name}</h3>
-              <p>₹ {p.price}</p>
-              <p>{p.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // 🏠 HOME PAGE
+  // 🏠 HOME UI
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -167,10 +133,7 @@ export default function App() {
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div>
-          <button onClick={() => setPage("profile")}>Profile</button>
-          <button onClick={logout}>Logout</button>
-        </div>
+        <button onClick={logout}>Logout</button>
       </div>
 
       <div style={styles.form}>
@@ -217,9 +180,8 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "10px",
     marginBottom: "20px",
-    flexWrap: "wrap",
+    gap: "10px",
   },
   form: {
     display: "flex",
